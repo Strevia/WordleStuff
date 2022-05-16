@@ -1,4 +1,4 @@
 import wordle
 import re
 from itertools import product, repeat
-wordle.driverHard("scrabble.txt", wordLen=4)
+wordle.driverHard("scrabble.txt", wordLen=5)
