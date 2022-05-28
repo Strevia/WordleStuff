@@ -1,4 +1,4 @@
 import wordle
-import re
+import pickle
 from itertools import product, repeat
-wordle.driverHard("scrabble.txt", wordLen=5)
+wordle.driver("scrabble.txt", "scrabble.txt", wordLen=5)

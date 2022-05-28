@@ -53,7 +53,6 @@ var getWordList = function (url, resolve, reject) {
     });
 };
 getWordList("https://raw.githubusercontent.com/redbo/scrabble/master/dictionary.txt", function (words) {
-    words = words.slice(0, 101)
     var theWord = words[Math.floor(Math.random() * words.length)];
     document.getElementById("submit").addEventListener("click", function (event) {
         var word = document.getElementById("word");
