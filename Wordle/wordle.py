@@ -171,7 +171,7 @@ def driver(fileGuess, filePoss, wordLen = -1, calcFunc = calcWord):
         for i in file:
             if len(i.strip()) == WORDLENGTH or WORDLENGTH == -1:
                 words.append(i.strip())
-    with open(fileGuess, "r'") as file:
+    with open(fileGuess, "r") as file:
         for i in file:
             if len(i.strip()) == WORDLENGTH or WORDLENGTH == -1:
                 wordsGuess.append(i.strip())
