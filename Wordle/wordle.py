@@ -1,6 +1,6 @@
 from collections import defaultdict
 from numpy import array, square
-import pickle
+import pickle, sys
 class Tree:
     def __init__(self, data):
         self.children = {}
@@ -146,8 +146,8 @@ def getBestTwo(wordList1, wordList2, calcFunc = calcWord): #wordlist1 guess word
   return words
 def flatten(t):
     return [item for sublist in t for item in sublist]
-def driverHard(fileName, calcFunc = calcWord, wordLen = -1, firstGuess = None):
-    WORDLENGTH = wordLen
+def driverHard(fileName, wordLen = -1, calcFunc = calcWord):
+    WORDLENGTH = int(wordLen)
     numWords = 1
     file = open(fileName, "r")
     words = list()
@@ -162,22 +162,19 @@ def driverHard(fileName, calcFunc = calcWord, wordLen = -1, firstGuess = None):
         inp = input(f"Output from {x.data}: ")
         x = x.children[inp]
     print(f"The word is {x.data}")
-def driver(fileGuess, filePoss, calcFunc = calcWord, wordLen = -1):
-    WORDLENGTH = wordLen
+def driver(fileGuess, filePoss, wordLen = -1, calcFunc = calcWord):
+    WORDLENGTH = int(wordLen)
     numWords = 1
-    file = open(filePoss, "r")
-    file2 = open(fileGuess, "r")
     words = list()
     wordsGuess = list()
-
-    for i in file:
-        if len(i.strip()) == WORDLENGTH or WORDLENGTH == -1:
-            words.append(i.strip())
-    for i in file2:
-        if len(i.strip()) == WORDLENGTH or WORDLENGTH == -1:
-            wordsGuess.append(i.strip())
-    file.close()
-    file2.close()
+    with open(filePoss, "r") as file:
+        for i in file:
+            if len(i.strip()) == WORDLENGTH or WORDLENGTH == -1:
+                words.append(i.strip())
+    with open(fileGuess, "r'") as file:
+        for i in file:
+            if len(i.strip()) == WORDLENGTH or WORDLENGTH == -1:
+                wordsGuess.append(i.strip())
     first = True
     firstTime = True
     wordsEdit = [words]
@@ -230,8 +227,8 @@ def driver(fileGuess, filePoss, calcFunc = calcWord, wordLen = -1):
         elif len(flatten(wordsEdit)) == 0:
             print("No words left, something gone wrong")
             return
-def driverInfinite(fileGuess, filePoss, calcFunc = calcWord, wordLen = -1, firstGuess = None):
-    WORDLENGTH = wordLen
+def driverInfinite(fileGuess, filePoss, wordLen = -1, calcFunc = calcWord):
+    WORDLENGTH = int(wordLen)
     numWords = 1
     file = open(filePoss, "r")
     file2 = open(fileGuess, "r")
@@ -296,4 +293,26 @@ def driverInfinite(fileGuess, filePoss, calcFunc = calcWord, wordLen = -1, first
         elif len(flatten(wordsEdit)) == 0:
             print("No words left, something gone wrong")
             return
-wordsDict = dict()
+def main(args):
+    if len(args) == 1:
+        print("Please enter a file name")
+        return
+    if "-h" in args:
+        if len(args) < 2:
+            print("Please enter a file name")
+            return
+        driverHard(args[2], args[3])
+    elif "-i" in args:
+        if len(args) < 3:
+            print("Please enter a file name")
+            return
+        driverInfinite(args[2], args[3], args[4])
+    else:
+        if len(args) < 3:
+            print("Please enter a file name")
+            return
+        driver(args[1], args[2], args[3])
+    
+
+if __name__ == "__main__":
+    main(sys.argv)
