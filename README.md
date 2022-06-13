@@ -5,7 +5,7 @@ To run, first cd to the directory /WordleStuff/Wordle. Then, use the following s
 For regular mode:
 > python ./wordle.py \<Guessable Words\> \<Possible Words\> \<WordLength\>
 
-For hard mode:
+For hard mode (NOTE: Hard mode may take longer than the lifetime of the universe):
 
 > python ./wordle.py -h \<Guessable Words\> \<WordLength\>
 
