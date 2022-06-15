@@ -10,65 +10,27 @@ class Tree:
 
 def zero():
     return 0
-def fourthWord(wordList):
-    words = ["forge", "pluck"]
-    banned = "qxzvwj"
-    letters = set()
-    for w in words:
-        for c in w:
-            letters.add(c)
-    for word in wordList:
-        good = True
-        for c in word:
-            if c in letters or c in banned:
-                good = False
-                break
-        if good and len(set(word)) == 5:
-            for word2 in wordList:
-                good2 = True
-                for c in word2:
-                    if c in letters or c in banned:
-                        good2 = False
-                        break
-                if good2 and len(set(word+word2)) == 10:
-                    print(word, word2)
-def getBestHard(wordList, calcFunc, recursionLength=0):
-    if len(wordList) <= 2:
-        return (len(wordList), Tree(wordList[0]))
-    print(wordList, recursionLength)
-    out = defaultdict(dict)
-    if len(set(wordList)) <= 1:
-        return (1, Tree(wordList[0]))
-    heuristic = ["lares"]
-    smallest = len(wordList)
-    for guess in wordList:
-        if guess in heuristic or recursionLength > 0:
-            done = False
-            contain = defaultdict(list)
-            for poss in wordList:
-                if guess != poss:
-                    contain[calcFunc(guess, poss)].append(poss)
-                    if len(contain[calcFunc(guess, poss)]) > smallest:
-                        done = True
-                        break
-            if not done:
-                for output, words in contain.items():
-                    down = getBestHard(words, calcFunc, recursionLength+1)
-                    out[guess][output] = down
-                    smallest = max(smallest, len(words))
-    mini = float('inf')
-    for guess, results in out.items():
-        maxi = float('-inf')
-        for item in results.values():
-            if item[0] > maxi:
-                maxi = item[0]
-        if maxi < mini:
-            mini = maxi
-            miniItem = guess
-    output = Tree(miniItem)
-    for key in out[miniItem]:
-        output.children[key] = out[miniItem][key][1]
-    return (1 + mini, output)
+def getBestHard(wordListGuess, wordListPoss, calcFunc, recursionLength=0):
+    out = defaultdict(int)
+    for c, guess in enumerate(wordListGuess):
+        contain = defaultdict(list)
+        for poss in wordListPoss:
+            if not isinstance(poss, dict):
+                contain[calcFunc(guess, poss)].append(poss)
+            else:
+                cats = set()
+                for word in poss:
+                    cats.add(calcFunc(guess, poss[word]))
+                for cat in cats:
+                    contain[cat].append(poss)          
+        equalOne = []
+        for cont in contain:
+            if len(contain[cont]) == 1:
+                equalOne.append(contain[cont][0])
+        out[guess] = equalOne
+        print(f"{(c)}/{len(wordListGuess)}", end='\r')
+    wordFreqSort = dict(sorted(out.items(), key=lambda item: len(item[1])))
+    return wordFreqSort
     
 def getBestThree(wordListGuess, wordListPoss, calcFunc):
   out = defaultdict(int)
@@ -107,61 +69,30 @@ def remove(wordList, output, guess, calcFunc):
         if calcFunc(guess, word) == output:
             newList.append(word)
     return newList
-def getBestTwo(wordList1, wordList2, calcFunc = calcWord): #wordlist1 guess wordlist2 possible
-  words = list()
-  best = "lares"
-  words.append(best)
-  print(best)
-  print()
-  containers = defaultdict(list)
-  for word in flatten(wordList2):
-    calculations = calcWord(word, best)
-    containers[calculations].append(word)
-  best2 = list(getBestThree(wordList1, list(containers.values()), calcFunc).keys())[0]
-  print(best2)
-  print()
-  words.append(best2)
-  done = False
-  while not done:
-    done = True
-    containers2 = defaultdict(list)
-    for cont in containers:
-      for word in containers[cont]:
-        calculations = calcWord(word, best2)
-        containers2[(cont, calculations)].append(word)
-        if len(containers2[(cont, calculations)]) > 1:
-          done = False
-    best2 = list(getBestThree(wordList1, list(containers2.values()), calcFunc).keys())[0]
-    words.append(best2)
-    print(best2)
-    print()
-    containers = dict(containers2)
-    if len(words) == 4:
-      done = True
-  count = 0
-  for cont in containers2.values():
-      if list(getBestThree(wordList1, [cont]).values())[0] > 1:
-          count += 1
-  print(count, len(wordList2[0]), count/len(wordList2[0]))
-  return words
 def flatten(t):
     return [item for sublist in t for item in sublist]
-def driverHard(fileName, wordLen = -1, calcFunc = calcWord):
+def driverHard(fileGuess, filePoss, wordLen = -1, calcFunc = calcWord):
     WORDLENGTH = int(wordLen)
     numWords = 1
-    file = open(fileName, "r")
-    words = list()
-    for i in file:
-        if len(i.strip()) == WORDLENGTH or WORDLENGTH == -1:
-            words.append(i.strip())
-    file.close()
-    x = getBestHard(words, calcFunc)[1]
-    with open("hardmode.pickle") as f:
-        pickle.dump(x, f)
-    while len(x.children) > 0:
-        inp = input(f"Output from {x.data}: ")
-        x = x.children[inp]
-    print(f"The word is {x.data}")
+    words = []
+    wordsGuess = []
+    with open(filePoss, "r") as file:
+        for i in file:
+            if len(i.strip()) == WORDLENGTH or WORDLENGTH == -1:
+                words.append(i.strip())
+    with open(fileGuess, "r") as file:
+        for i in file:
+            if len(i.strip()) == WORDLENGTH or WORDLENGTH == -1:
+                wordsGuess.append(i.strip())
+    wordsEdit = list(words)
+    wordsGuessEdit = list(wordsGuess)
+    while len(wordsEdit) > 1:
+        wordBest = getBestHard(wordsGuessEdit, wordsEdit, calcFunc)
+        word = list(wordBest.keys())[0]
+        x = input(f"{word} ")
+        wordsEdit = remove(wordsEdit, x, word, calcFunc)
+        wordsGuessEdit = remove(wordsGuessEdit, x, word, calcFunc)
+    print(wordsEdit[0])
 def driver(fileGuess, filePoss, wordLen = -1, calcFunc = calcWord):
     WORDLENGTH = int(wordLen)
     numWords = 1
@@ -196,7 +127,8 @@ def driver(fileGuess, filePoss, wordLen = -1, calcFunc = calcWord):
             firstTime = False
             first = False
             with open(f"firsts/{fileGuess}{filePoss}{wordLen}.pickle", "wb+") as f:
-                    pickle.dump(wordBest, f)
+                    #pickle.dump(wordBest, f)
+                    pass
         word = list(wordBest.keys())[0]
         val = 0
         print(word, len(flatten(wordsEdit)), wordBest[word])
@@ -301,7 +233,7 @@ def main(args):
         if len(args) < 2:
             print("Please enter a file name")
             return
-        driverHard(args[2], args[3])
+        driverHard(args[2], args[3], args[4])
     elif "-i" in args:
         if len(args) < 3:
             print("Please enter a file name")
