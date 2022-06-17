@@ -1,4 +1,5 @@
 from collections import defaultdict
+from matplotlib.pyplot import ylabel
 from numpy import array, square
 import pickle, sys
 class Tree:
@@ -46,8 +47,21 @@ def getBestThree(wordListGuess, wordListPoss, calcFunc):
     print(f"{(c)}/{len(wordListGuess)}", end='\r')
   wordFreqSort = dict(sorted(out.items(), key=lambda item: item[1]))
   return wordFreqSort
+
+def betterWord(chosenWords, wordListPoss, calcFunc):
+    output = defaultdict(int)
+    for word in wordListPoss:
+        out = list()
+        for guess in chosenWords:
+            out.append(calcFunc(guess, word))
+        output[tuple(out)] += 1
+    return output
+
 def calcWord(guess, word):
-    counts = defaultdict(zero)
+    global calcs
+    if (guess, word) in calcs:
+        return calcs[(guess, word)]
+    counts = defaultdict(int)
     out = [0] * len(guess)
     for i, char in enumerate(word):
         counts[char] += 1
@@ -62,6 +76,7 @@ def calcWord(guess, word):
             counts[guess[i]] -= 1
         else:
             out[i] = "r"
+    calcs[(guess, word)] = "".join(out)
     return ''.join(out)
 def remove(wordList, output, guess, calcFunc):
     newList = list()
@@ -71,6 +86,7 @@ def remove(wordList, output, guess, calcFunc):
     return newList
 def flatten(t):
     return [item for sublist in t for item in sublist]
+calcs = dict()
 def driverHard(fileGuess, filePoss, wordLen = -1, calcFunc = calcWord):
     WORDLENGTH = int(wordLen)
     numWords = 1
@@ -84,15 +100,69 @@ def driverHard(fileGuess, filePoss, wordLen = -1, calcFunc = calcWord):
         for i in file:
             if len(i.strip()) == WORDLENGTH or WORDLENGTH == -1:
                 wordsGuess.append(i.strip())
-    wordsEdit = list(words)
-    wordsGuessEdit = list(wordsGuess)
-    while len(wordsEdit) > 1:
-        wordBest = getBestHard(wordsGuessEdit, wordsEdit, calcFunc)
-        word = list(wordBest.keys())[0]
-        x = input(f"{word} ")
-        wordsEdit = remove(wordsEdit, x, word, calcFunc)
-        wordsGuessEdit = remove(wordsGuessEdit, x, word, calcFunc)
-    print(wordsEdit[0])
+    bestWords = defaultdict(int)
+    try:
+        with open("besties.p", "rb") as file:
+            besties = pickle.load(file)
+    except:
+        besties = {}
+    leftovers = []
+    try:
+        with open("init.p", "rb") as file:
+            init = pickle.load(file)
+    except:
+        init = getBestThree(wordsGuess, words, calcFunc)
+        with open("init.p", "wb") as file:
+            pickle.dump(init, file)
+    wordsDec = list(init.keys())
+    doneAlready = list()
+    for bestWord in wordsDec:
+        if bestWord in besties:
+            continue
+        print(bestWord)
+        for c, word in enumerate(wordsGuess):
+            x = betterWord([bestWord, word], words, calcFunc) #5th
+            print(f"{(c)}/{len(wordsGuess)}", end='\r')
+            y = list(x.values())
+            bestWords[word] = sum(square(array(y)))/len(words)
+        bestWords = dict(sorted(bestWords.items(), key=lambda item: item[1]))
+        print(bestWord, list(bestWords.items())[0])
+        doneAlready.append(bestWord)
+        if not list(bestWords.items())[0] in besties or besties[list(bestWords.items())[0]] == bestWord:
+            with open("saving.txt", "a") as file:
+                file.write(bestWord + " " + str(list(bestWords.items())[0]) + "\n")
+        besties[bestWord] = list(bestWords.items())[0]
+        with open("besties.p", "wb") as file:
+            pickle.dump(besties, file)
+def driverFast(fileGuess, filePoss, wordLen = -1, calcFunc = calcWord):
+    WORDLENGTH = int(wordLen)
+    numWords = 1
+    words = []
+    wordsGuess = []
+    with open(filePoss, "r") as file:
+        for i in file:
+            if len(i.strip()) == WORDLENGTH or WORDLENGTH == -1:
+                words.append(i.strip())
+    with open(fileGuess, "r") as file:
+        for i in file:
+            if len(i.strip()) == WORDLENGTH or WORDLENGTH == -1:
+                wordsGuess.append(i.strip())
+    guesses = ["cured", "slant", "pigmy", "howbe"]
+    while True:
+        outputs = []
+        exceptions = {('yrrrr', 'ryyrr', 'rrrrr', 'rgrrr'): "falls", ('ryrrr', 'rrygg', 'rrrrr', 'rrrrr'): "ajiva"}
+        wordsEdit = list(words)
+        for guess in guesses:
+            outputs.append(input(f"{guess}: "))
+            wordsEdit = remove(wordsEdit, outputs[-1], guess, calcFunc)
+        if tuple(outputs) in exceptions:
+            word = exceptions[tuple(outputs)]
+        else:
+            word = wordsEdit[0]
+        if len(wordsEdit) > 1:
+            x = input(f"{word}: ")
+            wordsEdit = remove(wordsEdit, x, word, calcFunc)
+        print(wordsEdit[0])
 def driver(fileGuess, filePoss, wordLen = -1, calcFunc = calcWord):
     WORDLENGTH = int(wordLen)
     numWords = 1
@@ -239,6 +309,11 @@ def main(args):
             print("Please enter a file name")
             return
         driverInfinite(args[2], args[3], args[4])
+    elif "-f" in args:
+        if len(args) < 3:
+            print("Please enter a file name")
+            return
+        driverFast(args[2], args[3], args[4])
     else:
         if len(args) < 3:
             print("Please enter a file name")
