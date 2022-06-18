@@ -1,5 +1,6 @@
 from collections import defaultdict
-from matplotlib.pyplot import ylabel
+import heapq
+import queue
 from numpy import array, square
 import pickle, sys
 class Tree:
@@ -87,7 +88,26 @@ def remove(wordList, output, guess, calcFunc):
 def flatten(t):
     return [item for sublist in t for item in sublist]
 calcs = dict()
+def noSame(word1, word2):
+    return len(set(word1)) + len(set(word2)) == len(set(word1 + word2))
+def nextWord(guesses, wordList, calcFunc):
+    bestWords = defaultdict(int)
+    guesses = list(guesses)
+    for c, word in enumerate(wordList):
+        x = betterWord(guesses + [word], wordList, calcFunc) #sonic, alter, pudgy
+        print(f"{(c)}/{len(wordList)}", end='\r')
+        y = list(x.values())
+        bestWords[word] = sum(square(array(y)))/len(wordList)
+    bestWords = dict(sorted(bestWords.items(), key=lambda item: item[1]))
+    return list(bestWords.items())[0]
+def powerset(s):
+    x = len(s)
+    out = []
+    for i in range(1 << x):
+        out.append([s[j] for j in range(x) if (i & (1 << j))])
+    return out
 def driverHard(fileGuess, filePoss, wordLen = -1, calcFunc = calcWord):
+    global calcs
     WORDLENGTH = int(wordLen)
     numWords = 1
     words = []
@@ -100,40 +120,36 @@ def driverHard(fileGuess, filePoss, wordLen = -1, calcFunc = calcWord):
         for i in file:
             if len(i.strip()) == WORDLENGTH or WORDLENGTH == -1:
                 wordsGuess.append(i.strip())
-    bestWords = defaultdict(int)
     try:
-        with open("besties.p", "rb") as file:
-            besties = pickle.load(file)
+        with open("fringe.p", "rb") as file:
+            fringe = pickle.load(file)
     except:
-        besties = {}
-    leftovers = []
+        fringe = [(0, [])]
     try:
-        with open("init.p", "rb") as file:
-            init = pickle.load(file)
+        with open("completed.p", "rb") as file:
+            completed = pickle.load(file)
     except:
-        init = getBestThree(wordsGuess, words, calcFunc)
-        with open("init.p", "wb") as file:
-            pickle.dump(init, file)
-    wordsDec = list(init.keys())
-    doneAlready = list()
-    for bestWord in wordsDec:
-        if bestWord in besties:
+        completed = []
+    while len(fringe) > 0:
+        guesses = heapq.heappop(fringe)[1]
+        if set(guesses) in completed:
             continue
-        print(bestWord)
-        for c, word in enumerate(wordsGuess):
-            x = betterWord([bestWord, word], words, calcFunc) #5th
-            print(f"{(c)}/{len(wordsGuess)}", end='\r')
-            y = list(x.values())
-            bestWords[word] = sum(square(array(y)))/len(words)
-        bestWords = dict(sorted(bestWords.items(), key=lambda item: item[1]))
-        print(bestWord, list(bestWords.items())[0])
-        doneAlready.append(bestWord)
-        if not list(bestWords.items())[0] in besties or besties[list(bestWords.items())[0]] == bestWord:
-            with open("saving.txt", "a") as file:
-                file.write(bestWord + " " + str(list(bestWords.items())[0]) + "\n")
-        besties[bestWord] = list(bestWords.items())[0]
-        with open("besties.p", "wb") as file:
-            pickle.dump(besties, file)
+        next = nextWord(guesses, words, calcFunc)
+        completed.append(set(guesses))
+        with open("statesearch.txt", "a") as file:
+            file.write(f"{guesses} -> {next}\n")
+        print(guesses, next)
+        if next[1] <= 1:
+            return
+        for guess in powerset(guesses + [next[0]]):
+            if set(guess) in completed:
+                continue
+            heapq.heappush(fringe, (len(guess), guess))
+        print("Saving..", end='\r')
+        with open("fringe.p", "wb") as file:
+            pickle.dump(list(fringe), file)
+        with open("completed.p", "wb") as file:
+            pickle.dump(completed, file)
 def driverFast(fileGuess, filePoss, wordLen = -1, calcFunc = calcWord):
     WORDLENGTH = int(wordLen)
     numWords = 1
