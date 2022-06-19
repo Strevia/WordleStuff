@@ -1,5 +1,6 @@
 from collections import defaultdict
 import heapq
+import math
 import time
 import pymp
 from numpy import argmax, argmin, array, square
@@ -49,15 +50,28 @@ def getBestThree(wordListGuess, wordListPoss, calcFunc):
     print(f"{(c)}/{len(wordListGuess)}", end='\r')
   wordFreqSort = dict(sorted(out.items(), key=lambda item: item[1]))
   return wordFreqSort
-
+betterCalc = {}
 def betterWord(chosenWords, wordListPoss, calcFunc):
-    output = defaultdict(int)
-    for word in wordListPoss:
-        out = list()
-        for guess in chosenWords:
-            out.append(calcFunc(guess, word))
-        output[''.join(out)] += 1
-    return output
+    global betterCalc
+    output = dict()
+    for guess in chosenWords:
+        if guess in betterCalc:
+            output[guess] = betterCalc[guess]
+            continue
+        out = defaultdict(list)
+        for word in wordListPoss:
+            calc = calcFunc(guess, word)
+            out[word] = calc
+        output[guess] = out
+        betterCalc[guess] = out
+    dd = defaultdict(str)
+    for d in output.values():
+        for key, value in d.items():
+            dd[key] += value
+    inverted = defaultdict(int)
+    for value in dd.values():
+        inverted[value] += 1
+    return inverted
 
 def calcWord(guess, word):
     global calcs
@@ -91,17 +105,23 @@ def flatten(t):
 calcs = dict()
 def noSame(word1, word2):
     return len(set(word1)) + len(set(word2)) == len(set(word1 + word2))
+calced = dict()
 def nextWord(guesses, wordList, calcFunc):
-    bestWords = pymp.shared.list([0] * 7)
-    with pymp.Parallel(7) as p:
-        localWords = [len(wordList)] * len(wordList)
-        for c in p.range(len(wordList)):
-            word = wordList[c]
-            continuing = False
-            x = betterWord(guesses + [word], wordList, calcFunc)
-            y = list(x.values())
-            localWords[c] = sum(square(array(y)))/len(wordList)
-        bestWords[p.thread_num] = (min(localWords), argmin(localWords))
+    global calced
+    bestWords = [0]
+    localWords = [len(wordList)] * len(wordList)
+    for c in range(len(wordList)):
+        print(f"{c}/{len(wordList)}", end='\r')
+        word = wordList[c]
+        continuing = False
+        if tuple(sorted(guesses + [word])) in calced:
+            localWords[c] = calced[tuple(sorted(guesses + [word]))]
+            continue
+        x = betterWord(guesses + [word], wordList, calcFunc)
+        y = list(x.values())
+        localWords[c] = sum(square(array(y)))/len(wordList)
+        calced[tuple(sorted(guesses + [word]))] = localWords[c]
+    bestWords[0] = (min(localWords), argmin(localWords))
     bestWord = min(bestWords)
     return (wordList[bestWord[1]], bestWord[0])
 
