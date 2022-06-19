@@ -53,24 +53,23 @@ def getBestThree(wordListGuess, wordListPoss, calcFunc):
 betterCalc = {}
 def betterWord(chosenWords, wordListPoss, calcFunc):
     global betterCalc
-    output = dict()
+    output = []
     for guess in chosenWords:
         if guess in betterCalc:
-            output[guess] = betterCalc[guess]
+            output.append(betterCalc[guess])
             continue
-        out = defaultdict(list)
+        out = dict()
         for word in wordListPoss:
             calc = calcFunc(guess, word)
             out[word] = calc
-        output[guess] = out
+        output.append(out)
         betterCalc[guess] = out
-    dd = defaultdict(str)
-    for d in output.values():
-        for key, value in d.items():
-            dd[key] += value
     inverted = defaultdict(int)
-    for value in dd.values():
-        inverted[value] += 1
+    for word in wordListPoss:
+        x = ""
+        for c in range(len(chosenWords)):
+            x += output[c][word]
+        inverted[x] += 1
     return inverted
 
 def calcWord(guess, word):
@@ -107,21 +106,22 @@ def noSame(word1, word2):
     return len(set(word1)) + len(set(word2)) == len(set(word1 + word2))
 calced = dict()
 def nextWord(guesses, wordList, calcFunc):
-    global calced
-    bestWords = [0]
-    localWords = [len(wordList)] * len(wordList)
-    for c in range(len(wordList)):
-        print(f"{c}/{len(wordList)}", end='\r')
-        word = wordList[c]
-        continuing = False
-        if tuple(sorted(guesses + [word])) in calced:
-            localWords[c] = calced[tuple(sorted(guesses + [word]))]
-            continue
-        x = betterWord(guesses + [word], wordList, calcFunc)
-        y = list(x.values())
-        localWords[c] = sum(square(array(y)))/len(wordList)
-        calced[tuple(sorted(guesses + [word]))] = localWords[c]
-    bestWords[0] = (min(localWords), argmin(localWords))
+    #global calced
+    bestWords = pymp.shared.list([None] * 5)
+    #bestWords = [0]
+    with pymp.Parallel(5) as p:
+        localWords = [len(wordList)] * len(wordList)
+        for c in p.range(len(wordList)):
+            word = wordList[c]
+            #if tuple(sorted(guesses + [word])) in calced:
+                #localWords[c] = calced[tuple(sorted(guesses + [word]))]
+                #continue
+            p.print(f"{c}/{len(wordList)}", end='\r')
+            x = betterWord(guesses + [word], wordList, calcFunc)
+            y = array(list(x.values()))
+            localWords[c] = sum(square(y))/len(wordList)
+            #calced[tuple(sorted(guesses + [word]))] = localWords[c]
+        bestWords[p.thread_num] = (min(localWords), argmin(localWords))
     bestWord = min(bestWords)
     return (wordList[bestWord[1]], bestWord[0])
 
@@ -155,6 +155,8 @@ def driverHard(fileGuess, filePoss, wordLen = -1, calcFunc = calcWord):
             completed = pickle.load(file)
     except:
         completed = []
+    betterWord(words, words, calcFunc)
+    print(len(betterCalc))
     stamp = time.time()
     while len(fringe) > 0:
         guesses = heapq.heappop(fringe)[1]
