@@ -73,9 +73,9 @@ def betterWord(chosenWords, wordListPoss, calcFunc):
     return inverted
 
 def calcWord(guess, word):
-    global calcs
-    if (guess, word) in calcs:
-        return calcs[(guess, word)]
+    #global calcs
+    #if (guess, word) in calcs:
+        #return calcs[(guess, word)]
     counts = defaultdict(int)
     out = [0] * len(guess)
     for i, char in enumerate(word):
@@ -91,7 +91,7 @@ def calcWord(guess, word):
             counts[guess[i]] -= 1
         else:
             out[i] = "r"
-    calcs[(guess, word)] = ''.join(out)
+    #calcs[(guess, word)] = ''.join(out)
     return ''.join(out)
 def remove(wordList, output, guess, calcFunc):
     newList = list()
