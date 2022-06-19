@@ -93,11 +93,23 @@ def noSame(word1, word2):
 def nextWord(guesses, wordList, calcFunc):
     bestWords = pymp.shared.array(len(wordList))
     with pymp.Parallel() as p:
+        localWords = [0] * len(wordList)
         for c in p.range(len(wordList)):
             word = wordList[c]
-            x = betterWord(guesses + [word], wordList, calcFunc) #sonic, alter, pudgy
+            continuing = False
+            for guess in guesses:
+                for i in range(len(guess)):
+                    if guess[i] == word[i]:
+                        continuing = True
+            if continuing:
+                localWords[c] = len(wordList)
+                continue
+            x = betterWord(guesses + [word], wordList, calcFunc)
             y = list(x.values())
-            bestWords[c] = sum(square(array(y)))/len(wordList)
+            localWords[c] = sum(square(array(y)))/len(wordList)
+        for c, local in enumerate(localWords):
+            if local != 0:
+                bestWords[c] = local
     return (wordList[argmin(bestWords)], min(bestWords))
 
 def powerset(s):
