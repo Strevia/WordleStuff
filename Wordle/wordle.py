@@ -1,7 +1,7 @@
 from collections import defaultdict
 import heapq
-import queue
-from numpy import array, square
+import pymp
+from numpy import argmax, argmin, array, square
 import pickle, sys
 class Tree:
     def __init__(self, data):
@@ -55,7 +55,7 @@ def betterWord(chosenWords, wordListPoss, calcFunc):
         out = list()
         for guess in chosenWords:
             out.append(calcFunc(guess, word))
-        output[tuple(out)] += 1
+        output[''.join(out)] += 1
     return output
 
 def calcWord(guess, word):
@@ -77,7 +77,7 @@ def calcWord(guess, word):
             counts[guess[i]] -= 1
         else:
             out[i] = "r"
-    calcs[(guess, word)] = "".join(out)
+    calcs[(guess, word)] = ''.join(out)
     return ''.join(out)
 def remove(wordList, output, guess, calcFunc):
     newList = list()
@@ -91,15 +91,15 @@ calcs = dict()
 def noSame(word1, word2):
     return len(set(word1)) + len(set(word2)) == len(set(word1 + word2))
 def nextWord(guesses, wordList, calcFunc):
-    bestWords = defaultdict(int)
-    guesses = list(guesses)
-    for c, word in enumerate(wordList):
-        x = betterWord(guesses + [word], wordList, calcFunc) #sonic, alter, pudgy
-        print(f"{(c)}/{len(wordList)}", end='\r')
-        y = list(x.values())
-        bestWords[word] = sum(square(array(y)))/len(wordList)
-    bestWords = dict(sorted(bestWords.items(), key=lambda item: item[1]))
-    return list(bestWords.items())[0]
+    bestWords = pymp.shared.array(len(wordList))
+    with pymp.Parallel() as p:
+        for c in p.range(len(wordList)):
+            word = wordList[c]
+            x = betterWord(guesses + [word], wordList, calcFunc) #sonic, alter, pudgy
+            y = list(x.values())
+            bestWords[c] = sum(square(array(y)))/len(wordList)
+    return (wordList[argmin(bestWords)], min(bestWords))
+
 def powerset(s):
     x = len(s)
     out = []
@@ -145,7 +145,6 @@ def driverHard(fileGuess, filePoss, wordLen = -1, calcFunc = calcWord):
             if set(guess) in completed:
                 continue
             heapq.heappush(fringe, (len(guess), guess))
-        print("Saving..", end='\r')
         with open("fringe.p", "wb") as file:
             pickle.dump(list(fringe), file)
         with open("completed.p", "wb") as file:
