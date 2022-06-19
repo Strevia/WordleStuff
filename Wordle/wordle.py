@@ -1,5 +1,6 @@
 from collections import defaultdict
 import heapq
+import time
 import pymp
 from numpy import argmax, argmin, array, square
 import pickle, sys
@@ -91,26 +92,18 @@ calcs = dict()
 def noSame(word1, word2):
     return len(set(word1)) + len(set(word2)) == len(set(word1 + word2))
 def nextWord(guesses, wordList, calcFunc):
-    bestWords = pymp.shared.array(len(wordList))
-    with pymp.Parallel() as p:
-        localWords = [0] * len(wordList)
+    bestWords = pymp.shared.list([0] * 7)
+    with pymp.Parallel(7) as p:
+        localWords = [len(wordList)] * len(wordList)
         for c in p.range(len(wordList)):
             word = wordList[c]
             continuing = False
-            for guess in guesses:
-                for i in range(len(guess)):
-                    if guess[i] == word[i]:
-                        continuing = True
-            if continuing:
-                localWords[c] = len(wordList)
-                continue
             x = betterWord(guesses + [word], wordList, calcFunc)
             y = list(x.values())
             localWords[c] = sum(square(array(y)))/len(wordList)
-        for c, local in enumerate(localWords):
-            if local != 0:
-                bestWords[c] = local
-    return (wordList[argmin(bestWords)], min(bestWords))
+        bestWords[p.thread_num] = (min(localWords), argmin(localWords))
+    bestWord = min(bestWords)
+    return (wordList[bestWord[1]], bestWord[0])
 
 def powerset(s):
     x = len(s)
@@ -142,6 +135,7 @@ def driverHard(fileGuess, filePoss, wordLen = -1, calcFunc = calcWord):
             completed = pickle.load(file)
     except:
         completed = []
+    stamp = time.time()
     while len(fringe) > 0:
         guesses = heapq.heappop(fringe)[1]
         if set(guesses) in completed:
@@ -150,7 +144,8 @@ def driverHard(fileGuess, filePoss, wordLen = -1, calcFunc = calcWord):
         completed.append(set(guesses))
         with open("statesearch.txt", "a") as file:
             file.write(f"{guesses} -> {next}\n")
-        print(guesses, next)
+        print(guesses, next, time.time() - stamp)
+        stamp = time.time()
         if next[1] <= 1:
             return
         for guess in powerset(guesses + [next[0]]):
