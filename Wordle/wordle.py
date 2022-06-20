@@ -107,21 +107,22 @@ def noSame(word1, word2):
 calced = dict()
 def nextWord(guesses, wordList, calcFunc):
     #global calced
-    bestWords = pymp.shared.list([None] * 5)
-    #bestWords = [0]
-    with pymp.Parallel(5) as p:
+    #bestWords = pymp.shared.list([None] * 5)
+    bestWords = [0]
+    #with pymp.Parallel(5) as p:
+    if True:
         localWords = [len(wordList)] * len(wordList)
-        for c in p.range(len(wordList)):
+        for c in range(len(wordList)):
             word = wordList[c]
             #if tuple(sorted(guesses + [word])) in calced:
                 #localWords[c] = calced[tuple(sorted(guesses + [word]))]
                 #continue
-            p.print(f"{c}/{len(wordList)}", end='\r')
+            print(f"{c}/{len(wordList)}", end='\r')
             x = betterWord(guesses + [word], wordList, calcFunc)
             y = array(list(x.values()))
             localWords[c] = sum(square(y))/len(wordList)
             #calced[tuple(sorted(guesses + [word]))] = localWords[c]
-        bestWords[p.thread_num] = (min(localWords), argmin(localWords))
+        bestWords[0] = (min(localWords), argmin(localWords))
     bestWord = min(bestWords)
     return (wordList[bestWord[1]], bestWord[0])
 
@@ -155,11 +156,19 @@ def driverHard(fileGuess, filePoss, wordLen = -1, calcFunc = calcWord):
             completed = pickle.load(file)
     except:
         completed = []
+    fringe2 = []
+    for c in range(len(fringe)):
+        z = fringe.pop()
+        if len(z) == 2:
+            x = betterWord(z[1], words, calcFunc)
+            y = array(list(x.values()))
+            heapq.heappush(fringe2, (z[0], sum(square(y)) / len(words), z[1]))
+    fringe = fringe2
     betterWord(words, words, calcFunc)
     print(len(betterCalc))
     stamp = time.time()
     while len(fringe) > 0:
-        guesses = heapq.heappop(fringe)[1]
+        guesses = heapq.heappop(fringe)[2]
         if set(guesses) in completed:
             continue
         next = nextWord(guesses, words, calcFunc)
@@ -173,7 +182,7 @@ def driverHard(fileGuess, filePoss, wordLen = -1, calcFunc = calcWord):
         for guess in powerset(guesses + [next[0]]):
             if set(guess) in completed:
                 continue
-            heapq.heappush(fringe, (len(guess), guess))
+            heapq.heappush(fringe, (len(guess), next[1], guess))
         with open("fringe.p", "wb") as file:
             pickle.dump(list(fringe), file)
         with open("completed.p", "wb") as file:
