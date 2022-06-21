@@ -50,6 +50,28 @@ def getBestThree(wordListGuess, wordListPoss, calcFunc):
     print(f"{(c)}/{len(wordListGuess)}", end='\r')
   wordFreqSort = dict(sorted(out.items(), key=lambda item: item[1]))
   return wordFreqSort
+def getBestTwo(wordListPoss, wordListGuess):
+    wordFreq = defaultdict(zero)
+    for i in wordListGuess:
+      wordFreq[i] = bestTwoScore(i, wordListPoss)
+    wordFreqSort = dict(sorted(wordFreq.items(), key=lambda item: item[1]))
+    return wordFreqSort
+def bestTwoScore(guesses, wordListPoss, freq):
+    summ1, summ2 = 0, 0
+    letters = "abcdefghijklmnopqrstuvwxyz"
+    guessFreq = defaultdict(int)
+    for i in letters:
+        guessFreq[i] = [0] * 5
+    for i in guesses:
+        for c, j in enumerate(i):
+            guessFreq[j][c] += 1.0
+    letters = "abcdefghijklmnopqrstuvwxyz"
+    for guess in guesses:
+        for c, j in enumerate(guess):
+            summ1 -= freq[j][c] / float(guessFreq[j][c])
+        for c, j in enumerate(guess):
+            summ2 -= sum(freq[j]) / float(sum(guessFreq[j]))
+    return summ1 + summ2 / (1.0 + len(i) - len(set(i)))
 betterCalc = {}
 def betterWord(chosenWords, wordListPoss, calcFunc, returnList = False):
     global betterCalc
@@ -77,11 +99,11 @@ def betterWord(chosenWords, wordListPoss, calcFunc, returnList = False):
         else:
             inverted[x] += 1
     return inverted
-
+calcs = {}
 def calcWord(guess, word):
-    #global calcs
-    #if (guess, word) in calcs:
-        #return calcs[(guess, word)]
+    global calcs
+    if (guess, word) in calcs:
+        return calcs[(guess, word)]
     counts = defaultdict(int)
     out = [0] * len(guess)
     for i, char in enumerate(word):
@@ -97,7 +119,7 @@ def calcWord(guess, word):
             counts[guess[i]] -= 1
         else:
             out[i] = "r"
-    #calcs[(guess, word)] = ''.join(out)
+    calcs[(guess, word)] = ''.join(out)
     return ''.join(out)
 def remove(wordList, output, guess, calcFunc):
     newList = list()
@@ -117,16 +139,41 @@ def nextWord(guesses, wordList, calcFunc):
     bestWords = [0]
     #with pymp.Parallel(5) as p:
     if True:
+        letters = "abcdefghijklmnopqrstuvwxyz"
         localWords = [len(wordList)] * len(wordList)
+        freq = dict()
+        for i in letters:
+            freq[i] = [0] * 5
+        gsindex = list()
+        gss = list()
+        gs = list()
+        for i in range(len(max(wordList, key=len))):
+            theSame = True
+            if len(wordList[0]) - 1 >= i:
+                letter = wordList[0][i]
+            else:
+                continue
+            for j in wordList:
+                if len(j) - 1 < i or j[i] != letter:
+                    theSame = False
+                    break
+            if theSame:
+                gsindex.append(i)
+                gss.append(letter)
+                gs.append((letter, i))
+        for i in wordList:
+            for c, j in enumerate(i):
+                if not (j, c) in gs:
+                    freq[j][c] += 1.0
         for c in range(len(wordList)):
             word = wordList[c]
             #if tuple(sorted(guesses + [word])) in calced:
                 #localWords[c] = calced[tuple(sorted(guesses + [word]))]
                 #continue
-            print(f"{c}/{len(wordList)}", end='\r')
-            x = betterWord(guesses + [word], wordList, calcFunc)
-            y = array(list(x.values()))
-            localWords[c] = sum(square(y))/len(wordList)
+            x = bestTwoScore(guesses + [word], wordList, freq)
+            #y = array(list(x.values()))
+            #localWords[c] = sum(square(y))/len(wordList)
+            localWords[c] = x
             #calced[tuple(sorted(guesses + [word]))] = localWords[c]
         bestWords[0] = (min(localWords), argmin(localWords))
     bestWord = min(bestWords)
@@ -175,25 +222,23 @@ def driverHard(fileGuess, filePoss, wordLen = -1, calcFunc = calcWord):
             completed = pickle.load(file)
     except:
         completed = []
-    guesses = ["grand", "spicy", "thumb", "vowel"]
-    #print(nextWord(guesses, words, calcFunc))
-    print(getLeftovers(guesses, words, calcFunc))
-    return
-    betterWord(words, words, calcFunc)
-    print(len(betterCalc))
+    #betterWord(words, words, calcFunc)
+    #print(len(betterCalc))
     stamp = time.time()
     while len(fringe) > 0:
         guesses = heapq.heappop(fringe)[2]
         if set(guesses) in completed:
             continue
         next = nextWord(guesses, words, calcFunc)
+        next = list(next)
+        next[1] = score(guesses + [next[0]], words, calcFunc)
+        if next[1] <= 1:
+            return
         completed.append(set(guesses))
         with open("statesearch.txt", "a") as file:
             file.write(f"{guesses} -> {next}\n")
         print(guesses, next, time.time() - stamp)
         stamp = time.time()
-        if next[1] <= 1:
-            return
         for guess in powerset(guesses + [next[0]]):
             if set(guess) in completed:
                 continue
