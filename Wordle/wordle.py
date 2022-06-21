@@ -125,7 +125,10 @@ def nextWord(guesses, wordList, calcFunc):
         bestWords[0] = (min(localWords), argmin(localWords))
     bestWord = min(bestWords)
     return (wordList[bestWord[1]], bestWord[0])
-
+def score(guesses, wordList, calcFunc):
+    x = betterWord(guesses, wordList, calcFunc)
+    score = sum(square(list(x.values())))/len(wordList)
+    return score
 def powerset(s):
     x = len(s)
     out = []
@@ -150,20 +153,14 @@ def driverHard(fileGuess, filePoss, wordLen = -1, calcFunc = calcWord):
         with open("fringe.p", "rb") as file:
             fringe = pickle.load(file)
     except:
-        fringe = [(0, [])]
+        fringe = [(0, 0, [])]
     try:
         with open("completed.p", "rb") as file:
             completed = pickle.load(file)
     except:
         completed = []
-    fringe2 = []
-    for c in range(len(fringe)):
-        z = fringe.pop()
-        if len(z) == 2:
-            x = betterWord(z[1], words, calcFunc)
-            y = array(list(x.values()))
-            heapq.heappush(fringe2, (z[0], sum(square(y)) / len(words), z[1]))
-    fringe = fringe2
+    print(score(["grand", "spicy", "thumb", "vowel"], words, calcFunc))
+    return
     betterWord(words, words, calcFunc)
     print(len(betterCalc))
     stamp = time.time()
