@@ -51,7 +51,7 @@ def getBestThree(wordListGuess, wordListPoss, calcFunc):
   wordFreqSort = dict(sorted(out.items(), key=lambda item: item[1]))
   return wordFreqSort
 betterCalc = {}
-def betterWord(chosenWords, wordListPoss, calcFunc):
+def betterWord(chosenWords, wordListPoss, calcFunc, returnList = False):
     global betterCalc
     output = []
     for guess in chosenWords:
@@ -64,12 +64,18 @@ def betterWord(chosenWords, wordListPoss, calcFunc):
             out[word] = calc
         output.append(out)
         betterCalc[guess] = out
-    inverted = defaultdict(int)
+    if returnList:
+        inverted = defaultdict(list)
+    else:
+        inverted = defaultdict(int)
     for word in wordListPoss:
         x = ""
         for c in range(len(chosenWords)):
             x += output[c][word]
-        inverted[x] += 1
+        if returnList:
+            inverted[x].append(word)
+        else:
+            inverted[x] += 1
     return inverted
 
 def calcWord(guess, word):
@@ -129,6 +135,16 @@ def score(guesses, wordList, calcFunc):
     x = betterWord(guesses, wordList, calcFunc)
     score = sum(square(list(x.values())))/len(wordList)
     return score
+def getLeftovers(guesses, wordList, calcFunc):
+    x = betterWord(guesses, wordList, calcFunc, True)
+    count = 0
+    for words in x.values():
+        if len(words) > 1:
+            count += len(words)
+        if len(words) > 2:
+            print(words, list(getBestThree(wordList, words, calcFunc).items())[len(words) - 1])
+    print(count)
+    return score(guesses, wordList, calcFunc)
 def powerset(s):
     x = len(s)
     out = []
@@ -159,7 +175,9 @@ def driverHard(fileGuess, filePoss, wordLen = -1, calcFunc = calcWord):
             completed = pickle.load(file)
     except:
         completed = []
-    print(score(["grand", "spicy", "thumb", "vowel"], words, calcFunc))
+    guesses = ["grand", "spicy", "thumb", "vowel"]
+    #print(nextWord(guesses, words, calcFunc))
+    print(getLeftovers(guesses, words, calcFunc))
     return
     betterWord(words, words, calcFunc)
     print(len(betterCalc))
