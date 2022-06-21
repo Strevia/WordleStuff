@@ -110,13 +110,10 @@ function press(key) {
     button.click();
 }
 function getBestFast(words, wordsGuess) {
-    var guessing = ["cured", "slant", "pigmy", "howbe"];
+    var guessing = ["grand", "spicy", "thumb", "vowel"];
     setInterval(function () {
         press("enter");
         var outputs = "";
-        var exceptions = {};
-        exceptions["yrrrr,ryyrr,rrrrr,rgrrr,"] = "falls";
-        exceptions["ryrrr,rrygg,rrrrr,rrrrr,"] = "ajiva";
         var wordsEdit = deepCopy(words);
         for (var guess in guessing) {
             var guessWord = guessing[guess];
@@ -147,11 +144,7 @@ function getBestFast(words, wordsGuess) {
         for (var i_1 = 0; i_1 < outputSplits.length; i_1++) {
             wordsEdit = remove(wordsEdit, outputSplits[i_1], guessing[i_1], calcWord);
         }
-        var word;
-        if (outputs in exceptions)
-            word = exceptions[outputs];
-        else
-            word = wordsEdit[0];
+        var word = wordsEdit[0];
         if (wordsEdit.length > 1) {
             for (var i_2 = 0; i_2 < word.length; i_2++) {
                 press(word.charAt(i_2));

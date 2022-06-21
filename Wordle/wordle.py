@@ -4,6 +4,7 @@ import math
 import time
 import pymp
 from numpy import argmax, argmin, array, square
+from Levenshtein import distance
 import pickle, sys
 class Tree:
     def __init__(self, data):
@@ -47,7 +48,6 @@ def getBestThree(wordListGuess, wordListPoss, calcFunc):
             if guess != poss:
                 contain[calcFunc(guess, poss)] += 1
         out[guess] += sum(square(array(list(contain.values())))/len(wordlist))/len(wordListPoss)
-    print(f"{(c)}/{len(wordListGuess)}", end='\r')
   wordFreqSort = dict(sorted(out.items(), key=lambda item: item[1]))
   return wordFreqSort
 betterCalc = {}
@@ -71,11 +71,11 @@ def betterWord(chosenWords, wordListPoss, calcFunc):
             x += output[c][word]
         inverted[x] += 1
     return inverted
-
+calcs = {}
 def calcWord(guess, word):
-    #global calcs
-    #if (guess, word) in calcs:
-        #return calcs[(guess, word)]
+    global calcs
+    if (guess, word) in calcs:
+        return calcs[(guess, word)]
     counts = defaultdict(int)
     out = [0] * len(guess)
     for i, char in enumerate(word):
@@ -91,7 +91,7 @@ def calcWord(guess, word):
             counts[guess[i]] -= 1
         else:
             out[i] = "r"
-    #calcs[(guess, word)] = ''.join(out)
+    calcs[(guess, word)] = ''.join(out)
     return ''.join(out)
 def remove(wordList, output, guess, calcFunc):
     newList = list()
@@ -125,7 +125,10 @@ def nextWord(guesses, wordList, calcFunc):
         bestWords[0] = (min(localWords), argmin(localWords))
     bestWord = min(bestWords)
     return (wordList[bestWord[1]], bestWord[0])
-
+def score(guesses, wordList, calcFunc):
+    x = betterWord(guesses, wordList, calcFunc)
+    score = sum(square(list(x.values())))/len(wordList)
+    return score
 def powerset(s):
     x = len(s)
     out = []
@@ -156,6 +159,21 @@ def driverHard(fileGuess, filePoss, wordLen = -1, calcFunc = calcWord):
             completed = pickle.load(file)
     except:
         completed = []
+    needed = defaultdict(int)
+    for c, word1 in enumerate(words):
+        for c2 in range(c+1, len(words)):
+            word2 = words[c2]
+            if distance(word1, word2) == 1:
+                x = getBestThree(words, [word1, word2], calcFunc)
+                new = []
+                for word in x:
+                    if x[word] <= 1:
+                        needed[word] += 1
+                        continue
+                    break
+        print(f"{c}/{len(words)}", end='\r')
+    print(needed)
+    return
     fringe2 = []
     for c in range(len(fringe)):
         z = fringe.pop()

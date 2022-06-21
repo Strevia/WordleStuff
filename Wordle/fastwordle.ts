@@ -110,13 +110,10 @@ function press(key: string){
     button.click()
 }
 function getBestFast(words: Array<string>, wordsGuess: Array<string>): void {
-    const guessing = ["cured", "slant", "pigmy", "howbe"]
+    const guessing = ["grand", "spicy", "thumb", "vowel"]
     setInterval(function() {
         press("enter")
         let outputs: string = "";
-        let exceptions: {[key: string]: string} = {};
-        exceptions["yrrrr,ryyrr,rrrrr,rgrrr,"] = "falls";
-        exceptions["ryrrr,rrygg,rrrrr,rrrrr,"] = "ajiva";
         let wordsEdit = deepCopy(words)
         for (let guess in guessing){
             let guessWord = guessing[guess];
@@ -146,11 +143,7 @@ function getBestFast(words: Array<string>, wordsGuess: Array<string>): void {
         for (let i = 0; i < outputSplits.length; i++){
             wordsEdit = remove(wordsEdit, outputSplits[i], guessing[i], calcWord)
         }
-        let word: string;
-        if (outputs in exceptions)
-            word = exceptions[outputs]
-        else
-            word = wordsEdit[0]
+        let word = wordsEdit[0]
         if (wordsEdit.length > 1){
             for (let i = 0; i < word.length; i++){
                 press(word.charAt(i))
