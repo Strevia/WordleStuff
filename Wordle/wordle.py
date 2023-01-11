@@ -1,9 +1,12 @@
 from collections import defaultdict
 import heapq
+from itertools import combinations
 import math
+import random
 import time
 import pymp
 from numpy import argmax, argmin, array, square
+from tqdm import tqdm
 import pickle, sys
 class Tree:
     def __init__(self, data):
@@ -14,40 +17,45 @@ class Tree:
 
 def zero():
     return 0
-def getBestHard(wordListGuess, wordListPoss, calcFunc, recursionLength=0):
-    out = defaultdict(int)
-    for c, guess in enumerate(wordListGuess):
-        contain = defaultdict(list)
-        for poss in wordListPoss:
-            if not isinstance(poss, dict):
-                contain[calcFunc(guess, poss)].append(poss)
-            else:
-                cats = set()
-                for word in poss:
-                    cats.add(calcFunc(guess, poss[word]))
-                for cat in cats:
-                    contain[cat].append(poss)          
-        equalOne = []
-        for cont in contain:
-            if len(contain[cont]) == 1:
-                equalOne.append(contain[cont][0])
-        out[guess] = equalOne
-        print(f"{(c)}/{len(wordListGuess)}", end='\r')
-    wordFreqSort = dict(sorted(out.items(), key=lambda item: len(item[1])))
-    return wordFreqSort
+calcHard = {}
+def getBestHard(wordList, calcFunc, recursion = 0):
+    global calcHard
+    if tuple(wordList) in calcHard:
+        return calcHard[tuple(wordList)]
+    if len(wordList) <= 2:
+        return (wordList[0], 1)
+    output = {}
+    for guess in tqdm(wordList, desc=f"Hard {recursion}", leave=False):
+        if recursion == 0 and len(set(guess)) < 5:
+            break
+        if recursion == 0:
+            print(f"Guessing {guess}")
+        calc = defaultdict(list)
+        for poss in wordList:
+            if guess != poss:
+                calc[calcFunc(guess, poss)].append(poss)
+        score = 0
+        for i in tqdm(calc.values(), desc=f"Buckets {recursion}", leave=False):
+            score = max(score, getBestHard(i, calcFunc, recursion + 1)[1] + 1)
+        output[guess] = score
+        if recursion == 0:
+            print(f"{guess} {score}")
+    calcHard[tuple(wordList)] = min(output.items(), key=lambda item: item[1])
+    #print(calcHard[tuple(wordList)], wordList)
+    return min(output.items(), key=lambda item: item[1])
+
     
 def getBestThree(wordListGuess, wordListPoss, calcFunc):
   out = defaultdict(int)
   if not isinstance(wordListPoss[0], list):
       wordListPoss = [wordListPoss]
-  for c, guess in enumerate(wordListGuess):
+  for c, guess in tqdm(enumerate(wordListGuess), total=len(wordListGuess), desc="Guessing", leave=False):
     for wordlist in wordListPoss:
         contain = defaultdict(zero)
         for poss in wordlist:
             if guess != poss:
                 contain[calcFunc(guess, poss)] += 1
         out[guess] += sum(square(array(list(contain.values())))/len(wordlist))/len(wordListPoss)
-    print(f"{(c)}/{len(wordListGuess)}", end='\r')
   wordFreqSort = dict(sorted(out.items(), key=lambda item: item[1]))
   return wordFreqSort
 def getBestTwo(wordListPoss, wordListGuess):
@@ -85,7 +93,7 @@ def betterWord(chosenWords, wordListPoss, calcFunc, returnList = False):
             calc = calcFunc(guess, word)
             out[word] = calc
         output.append(out)
-        betterCalc[guess] = out
+        #betterCalc[guess] = out
     if returnList:
         inverted = defaultdict(list)
     else:
@@ -133,71 +141,53 @@ calcs = dict()
 def noSame(word1, word2):
     return len(set(word1)) + len(set(word2)) == len(set(word1 + word2))
 calced = dict()
-def nextWord(guesses, wordList, calcFunc):
-    #global calced
-    #bestWords = pymp.shared.list([None] * 5)
-    bestWords = [0]
-    #with pymp.Parallel(5) as p:
-    if True:
-        letters = "abcdefghijklmnopqrstuvwxyz"
-        localWords = [len(wordList)] * len(wordList)
-        freq = dict()
-        for i in letters:
-            freq[i] = [0] * 5
-        gsindex = list()
-        gss = list()
-        gs = list()
-        for i in range(len(max(wordList, key=len))):
-            theSame = True
-            if len(wordList[0]) - 1 >= i:
-                letter = wordList[0][i]
-            else:
+def nextWord(guesses, wordListPoss, wordListGuess, calcFunc):
+    doneAny = False
+    leeway = 0
+    while not doneAny:
+        localWords = [len(wordListGuess)] * len(wordListGuess)
+        for c in tqdm(range(len(wordListGuess)),desc="Calculating", leave=False):
+            word = wordListGuess[c]
+            if len(set(''.join(guesses) + word)) < len(''.join(guesses) + word) - leeway:
                 continue
-            for j in wordList:
-                if len(j) - 1 < i or j[i] != letter:
-                    theSame = False
-                    break
-            if theSame:
-                gsindex.append(i)
-                gss.append(letter)
-                gs.append((letter, i))
-        for i in wordList:
-            for c, j in enumerate(i):
-                if not (j, c) in gs:
-                    freq[j][c] += 1.0
-        for c in range(len(wordList)):
-            word = wordList[c]
-            #if tuple(sorted(guesses + [word])) in calced:
-                #localWords[c] = calced[tuple(sorted(guesses + [word]))]
-                #continue
-            x = bestTwoScore(guesses + [word], wordList, freq)
-            #y = array(list(x.values()))
-            #localWords[c] = sum(square(y))/len(wordList)
+            doneAny = True
+            x = score(guesses + [word], wordListPoss, calcFunc)
             localWords[c] = x
-            #calced[tuple(sorted(guesses + [word]))] = localWords[c]
-        bestWords[0] = (min(localWords), argmin(localWords))
-    bestWord = min(bestWords)
-    return (wordList[bestWord[1]], bestWord[0])
+        bestWords = (min(localWords), argmin(localWords))
+        leeway += 1
+    return (wordListGuess[bestWords[1]], bestWords[0])
+scores = {}
 def score(guesses, wordList, calcFunc):
+    global scores
+    if tuple(sorted(guesses)) in scores:
+        return scores[tuple(sorted(guesses))]
     x = betterWord(guesses, wordList, calcFunc)
     score = sum(square(list(x.values())))/len(wordList)
+    #score = len(wordList) - list(x.values()).count(1)
+    #score = len(wordList) - list(x.values()).count(1)
+    scores[tuple(sorted(guesses))] = score
     return score
 def getLeftovers(guesses, wordList, calcFunc):
     x = betterWord(guesses, wordList, calcFunc, True)
     count = 0
+    leftover = []
     for words in x.values():
         if len(words) > 1:
             count += len(words)
-        if len(words) > 2:
-            print(words, list(getBestThree(wordList, words, calcFunc).items())[len(words) - 1])
-    print(count)
-    return score(guesses, wordList, calcFunc)
+            leftover.append(words)
+    return leftover
 def powerset(s):
     x = len(s)
     out = []
     for i in range(1 << x):
         out.append([s[j] for j in range(x) if (i & (1 << j))])
     return out
+#return everything in list except index i
+def removeIndex(l, i):
+    return l[:i] + l[i+1:]
+#find difference between two strings
+def diff(s1, s2):
+    return [i for i in range(len(s1)) if s1[i] != s2[i]]
 def driverHard(fileGuess, filePoss, wordLen = -1, calcFunc = calcWord):
     global calcs
     WORDLENGTH = int(wordLen)
@@ -210,43 +200,52 @@ def driverHard(fileGuess, filePoss, wordLen = -1, calcFunc = calcWord):
                 words.append(i.strip())
     with open(fileGuess, "r") as file:
         for i in file:
-            if len(i.strip()) == WORDLENGTH or WORDLENGTH == -1:
+            if (len(i.strip()) == WORDLENGTH or WORDLENGTH == -1):
                 wordsGuess.append(i.strip())
+    completed = []
+    fringe = [(0, [])]
     try:
-        with open("fringe.p", "rb") as file:
-            fringe = pickle.load(file)
+        with open("statesearch.txt", "r") as file:
+            lines = file.readlines()
+            for line in tqdm(lines, desc = "Reading Log", leave = False, total=len(lines)):
+                lineSplit = line.split(",")
+                guesses = lineSplit[0].split(" ")
+                if set(guesses) in completed:
+                    continue
+                guesses[:] = [x for x in guesses if x != '']
+                completed.append(set(guesses))
+                if lineSplit[1] == wordsGuess[0] or set(guesses + [lineSplit[1]]) in completed:
+                    continue
+                for guess in powerset(guesses + [lineSplit[1]]):
+                    if set(guess) in completed:
+                        continue
+                    heapq.heappush(fringe, (len(guess), float(lineSplit[2]), guess))
     except:
-        fringe = [(0, 0, [])]
-    try:
-        with open("completed.p", "rb") as file:
-            completed = pickle.load(file)
-    except:
+        fringe = [(0, [])]
         completed = []
+    if len(fringe) == 0:
+        fringe = [(0, [])]
     #betterWord(words, words, calcFunc)
     #print(len(betterCalc))
     stamp = time.time()
     while len(fringe) > 0:
-        guesses = heapq.heappop(fringe)[2]
+        guesses = heapq.heappop(fringe)[-1]
         if set(guesses) in completed:
             continue
-        next = nextWord(guesses, words, calcFunc)
-        next = list(next)
-        next[1] = score(guesses + [next[0]], words, calcFunc)
+        next = nextWord(guesses, words, wordsGuess, calcFunc)
         if next[1] <= 1:
             return
         completed.append(set(guesses))
         with open("statesearch.txt", "a") as file:
-            file.write(f"{guesses} -> {next}\n")
+            file.write(f"{' '.join(guesses)},{next[0]},{next[1]}\n")
+        if next[0] == wordsGuess[0] or set(guesses + [next[0]]) in completed:
+            continue
         print(guesses, next, time.time() - stamp)
         stamp = time.time()
         for guess in powerset(guesses + [next[0]]):
             if set(guess) in completed:
                 continue
             heapq.heappush(fringe, (len(guess), next[1], guess))
-        with open("fringe.p", "wb") as file:
-            pickle.dump(list(fringe), file)
-        with open("completed.p", "wb") as file:
-            pickle.dump(completed, file)
 def driverFast(fileGuess, filePoss, wordLen = -1, calcFunc = calcWord):
     WORDLENGTH = int(wordLen)
     numWords = 1
