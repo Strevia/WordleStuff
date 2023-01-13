@@ -17,45 +17,40 @@ class Tree:
 
 def zero():
     return 0
-calcHard = {}
-def getBestHard(wordList, calcFunc, recursion = 0):
-    global calcHard
-    if tuple(wordList) in calcHard:
-        return calcHard[tuple(wordList)]
-    if len(wordList) <= 2:
-        return (wordList[0], 1)
-    output = {}
-    for guess in tqdm(wordList, desc=f"Hard {recursion}", leave=False):
-        if recursion == 0 and len(set(guess)) < 5:
-            break
-        if recursion == 0:
-            print(f"Guessing {guess}")
-        calc = defaultdict(list)
-        for poss in wordList:
-            if guess != poss:
-                calc[calcFunc(guess, poss)].append(poss)
-        score = 0
-        for i in tqdm(calc.values(), desc=f"Buckets {recursion}", leave=False):
-            score = max(score, getBestHard(i, calcFunc, recursion + 1)[1] + 1)
-        output[guess] = score
-        if recursion == 0:
-            print(f"{guess} {score}")
-    calcHard[tuple(wordList)] = min(output.items(), key=lambda item: item[1])
-    #print(calcHard[tuple(wordList)], wordList)
-    return min(output.items(), key=lambda item: item[1])
-
+def getBestHard(wordListGuess, wordListPoss, calcFunc, recursionLength=0):
+    out = defaultdict(int)
+    for c, guess in enumerate(wordListGuess):
+        contain = defaultdict(list)
+        for poss in wordListPoss:
+            if not isinstance(poss, dict):
+                contain[calcFunc(guess, poss)].append(poss)
+            else:
+                cats = set()
+                for word in poss:
+                    cats.add(calcFunc(guess, poss[word]))
+                for cat in cats:
+                    contain[cat].append(poss)          
+        equalOne = []
+        for cont in contain:
+            if len(contain[cont]) == 1:
+                equalOne.append(contain[cont][0])
+        out[guess] = equalOne
+        print(f"{(c)}/{len(wordListGuess)}", end='\r')
+    wordFreqSort = dict(sorted(out.items(), key=lambda item: len(item[1])))
+    return wordFreqSort
     
 def getBestThree(wordListGuess, wordListPoss, calcFunc):
   out = defaultdict(int)
   if not isinstance(wordListPoss[0], list):
       wordListPoss = [wordListPoss]
-  for c, guess in tqdm(enumerate(wordListGuess), total=len(wordListGuess), desc="Guessing", leave=False):
+  for c, guess in enumerate(wordListGuess):
     for wordlist in wordListPoss:
         contain = defaultdict(zero)
         for poss in wordlist:
             if guess != poss:
                 contain[calcFunc(guess, poss)] += 1
         out[guess] += sum(square(array(list(contain.values())))/len(wordlist))/len(wordListPoss)
+    print(f"{(c)}/{len(wordListGuess)}", end='\r')
   wordFreqSort = dict(sorted(out.items(), key=lambda item: item[1]))
   return wordFreqSort
 def getBestTwo(wordListPoss, wordListGuess):
@@ -64,16 +59,21 @@ def getBestTwo(wordListPoss, wordListGuess):
       wordFreq[i] = bestTwoScore(i, wordListPoss)
     wordFreqSort = dict(sorted(wordFreq.items(), key=lambda item: item[1]))
     return wordFreqSort
-def bestTwoScore(guesses, wordListPoss, freq):
-    summ1, summ2 = 0, 0
+def bestTwoScore(guesses, wordListPoss):
+    freq = dict()
     letters = "abcdefghijklmnopqrstuvwxyz"
+    for l in letters:
+        freq[l] = [0] * 5
+    for word in wordListPoss:
+        for c, j in enumerate(word):
+            freq[j][c] += 1
+    summ1, summ2 = 0, 0
     guessFreq = defaultdict(int)
     for i in letters:
         guessFreq[i] = [0] * 5
     for i in guesses:
         for c, j in enumerate(i):
             guessFreq[j][c] += 1.0
-    letters = "abcdefghijklmnopqrstuvwxyz"
     for guess in guesses:
         for c, j in enumerate(guess):
             summ1 -= freq[j][c] / float(guessFreq[j][c])
@@ -164,7 +164,6 @@ def score(guesses, wordList, calcFunc):
     x = betterWord(guesses, wordList, calcFunc)
     score = sum(square(list(x.values())))/len(wordList)
     #score = len(wordList) - list(x.values()).count(1)
-    #score = len(wordList) - list(x.values()).count(1)
     scores[tuple(sorted(guesses))] = score
     return score
 def getLeftovers(guesses, wordList, calcFunc):
@@ -206,15 +205,14 @@ def driverHard(fileGuess, filePoss, wordLen = -1, calcFunc = calcWord):
     fringe = [(0, [])]
     try:
         with open("statesearch.txt", "r") as file:
-            lines = file.readlines()
-            for line in tqdm(lines, desc = "Reading Log", leave = False, total=len(lines)):
+            for line in tqdm(file, desc = "Reading Log", leave = False):
                 lineSplit = line.split(",")
                 guesses = lineSplit[0].split(" ")
                 if set(guesses) in completed:
                     continue
                 guesses[:] = [x for x in guesses if x != '']
                 completed.append(set(guesses))
-                if lineSplit[1] == wordsGuess[0] or set(guesses + [lineSplit[1]]) in completed:
+                if lineSplit[1] == wordsGuess[0]:
                     continue
                 for guess in powerset(guesses + [lineSplit[1]]):
                     if set(guess) in completed:
@@ -238,7 +236,7 @@ def driverHard(fileGuess, filePoss, wordLen = -1, calcFunc = calcWord):
         completed.append(set(guesses))
         with open("statesearch.txt", "a") as file:
             file.write(f"{' '.join(guesses)},{next[0]},{next[1]}\n")
-        if next[0] == wordsGuess[0] or set(guesses + [next[0]]) in completed:
+        if next[0] == wordsGuess[0]:
             continue
         print(guesses, next, time.time() - stamp)
         stamp = time.time()
